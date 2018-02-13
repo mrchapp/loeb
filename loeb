@@ -1,0 +1,329 @@
+#!/bin/bash -e
+
+usage() {
+  echo "loeb - Linaro OpenEmbedded Builder"
+  echo
+  echo "Usage:"
+  echo "  loeb setup    Set up host to build OpenEmbedded"
+  echo "  loeb init     Initialize OpenEmbedded repository"
+  echo "  loeb sync     Synchronize recipe repository with server"
+  echo "  loeb apply    Apply a sauce"
+  echo "  loeb reset    Reset everything to a pristine state"
+}
+
+log() {
+  level=$1; shift
+  msg=$*
+
+  echo "[${level^^}] ${msg}"
+}
+
+log_on_error()
+{
+  local oldopts="$-"
+  set +e
+  logfile=$(mktemp -q)
+  log info "Running [$*]"
+  $* > ${logfile} 2>&1
+  ret=$?
+  if [ ${ret} -ne 0 ]; then
+    cat "${logfile}"
+  fi
+  rm "${logfile}"
+  set -${oldopts}
+  return ${ret}
+}
+
+install_repo() {
+  log info "Installing repo"
+  mkdir -p "${HOME}/bin"
+  curl -Ss https://storage.googleapis.com/git-repo-downloads/repo > "${HOME}/bin/repo"
+  chmod a+x "${HOME}/bin/repo"
+}
+
+get_repo_base_dir() {
+  dir=$(readlink -e "$(repo info -l openembedded/bitbake 2> /dev/null | grep ^Mount | cut -d\  -f3)"/../)
+  if [ -d "${dir}/.repo/" ]; then
+    echo "${dir}"
+  fi
+}
+
+loeb_setup() {
+  SETUP_JENKINS=no
+  SKIP_INSTALL=no
+  SKIP_UPDATE=no
+  while [ "$1" ]; do
+    case $1 in
+      --jenkins)
+        SETUP_JENKINS=yes
+        ;;
+      --skip-update)
+        SKIP_UPDATE=yes
+        ;;
+      --skip-install)
+        SKIP_INSTALL=yes
+        ;;
+      *)
+        log error "Unknown parameter to ${FUNCNAME}: ${1}"
+        exit 1
+        ;;
+    esac
+    shift
+  done
+
+  log info "Setup with:"
+  log info "* Jenkins: ${SETUP_JENKINS}"
+  log info "* Skip apt-get update: ${SKIP_UPDATE}"
+  log info "* Skip installation of dependencies: ${SKIP_INSTALL}"
+
+  if [ "${SETUP_JENKINS}" == "yes" ]; then
+    sudo mkdir -p /srv/oe
+    sudo chown buildslave:buildslave /srv/oe
+    cd /srv/oe
+  fi
+
+  if [ "${SKIP_INSTALL}" == "no" ]; then
+    # Install APT dependencies
+    pkg_list="android-tools-fsutils chrpath cpio diffstat gawk libelf-dev libmagickwand-dev \
+              libmath-prime-util-perl libsdl1.2-dev libssl-dev python-pip python-requests texinfo \
+              vim-tiny virtualenv whiptail"
+    if [ "${SKIP_UPDATE}" == "no" ]; then
+      if ! log_on_error sudo DEBIAN_FRONTEND=noninteractive apt-get -q=2 update; then
+        log info "apt update error - try again in a moment"
+        sleep 15
+        log_on_error sudo DEBIAN_FRONTEND=noninteractive apt-get update || true
+      fi
+    fi
+    if ! log_on_error sudo DEBIAN_FRONTEND=noninteractive apt-get -q=2 install -y ${pkg_list}; then
+      log info "apt install error - try again in a moment"
+      sleep 15
+      log_on_error sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ${pkg_list}
+    fi
+
+    # Install jinja2-cli and ruamel.yaml
+    pip install --user --force-reinstall jinja2-cli ruamel.yaml
+
+    install_repo
+  fi
+}
+
+
+loeb_init() {
+  SYNC=yes
+  while [ "$1" ]; do
+    case $1 in
+      --no-sync)
+        SYNC=no
+        ;;
+      --branch)
+        shift; BRANCH=$1
+        ;;
+      --manifest)
+        shift; MANIFEST_URL=$1
+        ;;
+      *)
+        log error "Unknown parameter to ${FUNCNAME}: $1"
+        exit 1
+        ;;
+    esac
+    shift
+  done
+  DEFAULT_MANIFEST_URL=${MANIFEST_URL:-https://github.com/96boards/oe-rpb-manifest.git}
+  DEFAULT_BRANCH=${BRANCH:-morty}
+
+  read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch
+  [ -z "${branch}" ] && branch="${DEFAULT_BRANCH}"
+  echo "Branch selected: ${branch}"
+
+  read -e -p "Enter manifest URL [${DEFAULT_MANIFEST_URL}] " manifest_url
+  [ -z "${manifest_url}" ] && manifest_url="${DEFAULT_MANIFEST_URL}"
+  echo "Manifest URL: ${manifest_url}"
+
+  if ! which repo > /dev/null; then
+    install_repo
+  fi
+
+  repo init -u "${manifest_url}" -b "${branch}"
+  if [ "${SYNC}" == "yes" ]; then
+    loeb_sync
+  fi
+}
+
+loeb_sync() {
+  log info "Synchronizing..."
+  if ! which repo > /dev/null; then
+    install_repo
+  fi
+  repo sync $*
+}
+
+loeb_reset() {
+  echo "Resetting will remove all unsaved changes and delete untracked files"
+  echo "across all repos."
+  read -e -p "Are you sure you want to proceed? [y/N] " proceed
+  answer=${proceed:0:1}
+  if [ "${answer,,}" != "y" ]; then
+    echo "Not resetting."
+    return
+  fi
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  pushd "${dir}" > /dev/null
+  rm -f pinned-manifest-latest.xml
+  rm -f pinned-manifest.xml
+  rm -f source-manifest.xml
+  repo forall -c git reset --hard HEAD
+  repo forall -c git clean -fdx
+  popd > /dev/null
+}
+
+sauce_rpb() {
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  cd "${dir}"
+
+  # Copies of our manifest
+  cp .repo/manifest.xml source-manifest.xml
+  repo manifest -r -o pinned-manifest.xml
+  MANIFEST_COMMIT=$(cd .repo/manifests && git rev-parse --short HEAD)
+
+  # Record changes since last build, if available
+  if wget -q ${BASE_URL}${PUB_DEST/\/${BUILD_NUMBER}\//\/latest\/}/pinned-manifest.xml -O pinned-manifest-latest.xml; then
+    repo diffmanifests ${PWD}/pinned-manifest-latest.xml ${PWD}/pinned-manifest.xml > manifest-changes.txt
+  else
+    log warning "Latest build published does not have pinned-manifest.xml. Skipping diff report."
+  fi
+
+  # the setup-environment will create auto.conf and site.conf
+  # make sure we get rid of old config.
+  # let's remove the previous TMPDIR as well.
+  # we want to preserve build/buildhistory though.
+  rm -rf conf ${BUILD_DIR}/conf ${BUILD_DIR}/tmp-*glibc/
+
+  # Accept EULA if/when needed
+  export EULA_dragonboard410c=1
+  export EULA_stih410b2260=1
+  sh setup-environment ${BUILD_DIR}
+
+  cd ${BUILD_DIR}
+  # Add job BUILD_NUMBER to output files names
+  cat << EOF >> conf/auto.conf
+IMAGE_NAME_append = "-${BUILD_NUMBER}"
+KERNEL_IMAGE_BASE_NAME_append = "-${BUILD_NUMBER}"
+MODULE_IMAGE_BASE_NAME_append = "-${BUILD_NUMBER}"
+DT_IMAGE_BASE_NAME_append = "-${BUILD_NUMBER}"
+BOOT_IMAGE_BASE_NAME_append = "-${BUILD_NUMBER}"
+EOF
+
+  # get build stats to make sure that we use sstate properly
+  cat << EOF >> conf/auto.conf
+INHERIT += "buildstats buildstats-summary"
+EOF
+}
+
+sauce_lkft() {
+  :
+}
+
+sauce_lhg() {
+  :
+}
+
+loeb_apply() {
+  if [ -z "${MACHINE}" -o -z "${DISTRO}" ]; then
+    loeb_config
+  fi
+  sauce_rpb
+cat << EOF >> ${BASE_DIR}/env-loeb
+set -a
+MACHINE=${MACHINE}
+DISTRO=${DISTRO}
+set +a
+. setup-environment ${BUILD_DIR}
+EOF
+  log info "Done. You can now run:"
+  log info "  source env-loeb"
+}
+
+update_config() {
+  item=$1; shift
+  value="$*"
+  if [ -f "${CONFIG_FILE}" ] && grep -q ^"${item}=" "${CONFIG_FILE}"; then
+    sed -i -e "s|^${item}=.*|${item}=${value}|" "${CONFIG_FILE}"
+  else
+    echo "${item}=${value}" >> "${CONFIG_FILE}"
+  fi
+}
+
+show_config() {
+  if [ -f ${CONFIG_FILE} ]; then
+    if [ $# -eq 0 ]; then
+      log info "Configuration:"
+      cat "${CONFIG_FILE}"
+    else
+      log info "[config] $(grep ^$1= ${CONFIG_FILE})"
+    fi
+  fi
+}
+
+loeb_config() {
+  DEFAULT_MACHINE=hikey
+  DEFAULT_DISTRO=rpb
+
+  read -e -p "Machine to build for? [${DEFAULT_MACHINE}] " machine
+  [ -z "${machine}" ] && machine="${DEFAULT_MACHINE}"
+  echo "Selected machine: ${machine}"
+  update_config MACHINE "${machine}"
+  export MACHINE="${machine}"
+
+  read -e -p "Distro to build? [${DEFAULT_DISTRO}] " distro
+  [ -z "${distro}" ] && distro="${DEFAULT_DISTRO}"
+  echo "Selected distro: ${distro}"
+  update_config DISTRO "${distro}"
+  export DISTRO="${distro}"
+}
+
+
+# START HERE
+BASE_DIR=$(get_repo_base_dir)
+BASE_DIR=${BASE_DIR:-.}
+CONFIG_FILE="${BASE_DIR}/.loeb.config"
+BUILD_DIR=build
+BUILD_NUMBER=1337
+if [ -f "${CONFIG_FILE}" ]; then
+  log info "Reading config from ${CONFIG_FILE}"
+  set -a
+  source "${CONFIG_FILE}"
+  set +a
+fi
+
+if [ $# -lt 1 ]; then
+  usage
+  exit 0
+fi
+
+action=$1; shift
+case ${action} in
+  apply)
+    loeb_apply $*
+    ;;
+  config)
+    loeb_config $*
+    ;;
+  init)
+    loeb_init $*
+    ;;
+  reset)
+    loeb_reset $*
+    ;;
+  setup)
+    loeb_setup $*
+    ;;
+  sync)
+    loeb_sync $*
+    ;;
+  *)
+    usage
+    ;;
+esac
+
