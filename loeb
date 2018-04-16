@@ -239,8 +239,131 @@ sauce_rpb() {
   sauce_house
 }
 
+# Sauce for Linux Kernel Functional Testing builds
+# needs:
+# KERNEL_RECIPE
+# KERNEL_VERSION
+# SRCREV_kernel
 sauce_lkft() {
-  :
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  cd "${dir}"
+
+  sauce_house
+
+  # Set the kernel to use
+  distro_conf=$(find ../layers/meta-rpb/conf/distro -name rpb.inc)
+  cat << EOF >> ${distro_conf}
+PREFERRED_PROVIDER_virtual/kernel = "${KERNEL_RECIPE}"
+EOF
+
+  case "${KERNEL_RECIPE}" in
+    linux-hikey-aosp|linux-generic-android-common-o*|linux-generic-lsk*|linux-generic-stable*)
+      cat << EOF >> ${distro_conf}
+PREFERRED_VERSION_${KERNEL_RECIPE} = "${KERNEL_VERSION}+git%"
+EOF
+      ;;
+  esac
+
+  # Use meta-oe version, required for mosh
+  cat << EOF >> ${distro_conf}
+PREFERRED_VERSION_protobuf = "2.6.1+git%"
+PREFERRED_VERSION_protobuf-native = "2.6.1+git%"
+EOF
+
+  # Set the image types to use
+  cat << EOF >> ${distro_conf}
+IMAGE_FSTYPES_remove = "ext4 iso wic"
+EOF
+
+  case "${KERNEL_RECIPE}" in
+    linux-*-aosp|linux-*-android-*)
+      cat << EOF >> ${distro_conf}
+CONSOLE = "ttyFIQ0"
+EOF
+      ;;
+  esac
+
+  cat << EOF >> ${distro_conf}
+KERNEL_ALT_IMAGETYPE_remove_stih410-b2260 = "vmlinux"
+EOF
+
+  # Mali GPU driver fails to build
+  # error: implicit declaration of function 'copy_from_user'
+  # [-Werror=implicit-function-declaration]
+  # Ignore the whole gpu MACHINE_FEATURES mechanism
+  stih410_b2260_conf=$(find ../layers/meta-st-cannes2/conf/machine -name stih410-b2260.conf ||:)
+  test -e "${stih410_b2260_conf}" && sed -i -e '/gpu/d' ${stih410_b2260_conf}
+
+  # Include additional recipes in the image
+  [ "${MACHINE}" = "am57xx-evm" -o "${MACHINE}" = "stih410-b2260" ] || extra_pkgs="numactl"
+  cat << EOF >> conf/local.conf
+CORE_IMAGE_BASE_INSTALL_append = " kernel-selftests kselftests-mainline kselftests-next libhugetlbfs-tests ltp ${extra_pkgs}"
+CORE_IMAGE_BASE_INSTALL_append = " python python-misc python-modules python-numpy python-pexpect python-pyyaml"
+CORE_IMAGE_BASE_INSTALL_append = " git mosh-server parted packagegroup-core-buildessential packagegroup-core-tools-debug tzdata"
+EOF
+
+  # Override cmdline
+  cat << EOF >> conf/local.conf
+CMDLINE_remove = "quiet"
+EOF
+
+  # Remove recipes:
+  # - docker to reduce image size
+  cat << EOF >> conf/local.conf
+RDEPENDS_packagegroup-rpb_remove = "docker"
+EOF
+
+  cat << EOF >> conf/local.conf
+DEFAULTTUNE_intel-core2-32 = "core2-64"
+SERIAL_CONSOLES_remove_intel-core2-32 = "115200;ttyPCH0"
+SERIAL_CONSOLES_append_dragonboard-410c = " 115200;ttyMSM1"
+SERIAL_CONSOLES_append_hikey = " 115200;ttyAMA2"
+EOF
+
+  # Enable lkft-metadata class
+  cat << EOF >> conf/local.conf
+INHERIT += "lkft-metadata"
+LKFTMETADATA_COMMIT = "1"
+EOF
+
+  # Remove systemd firstboot and machine-id file
+  # Backport serialization change from v234 to avoid systemd tty race condition
+  mkdir -p ../layers/meta-96boards/recipes-core/systemd/systemd
+  wget -q http://people.linaro.org/~fathi.boudra/backport-v234-e266c06-v230.patch \
+    -O ../layers/meta-96boards/recipes-core/systemd/systemd/backport-v234-e266c06-v230.patch
+  cat << EOF >> ../layers/meta-96boards/recipes-core/systemd/systemd/e2fsck.conf
+[options]
+# This will prevent e2fsck from stopping boot just because the clock is wrong
+broken_system_clock = 1
+EOF
+  backported_path="file://backport-v234-e266c06-v230.patch"
+  systemd_recipe=$(ls ../layers/openembedded-core/meta/recipes-core/systemd/systemd_*.bb)
+  [ "${systemd_recipe}" == "systemd_234.bb" ] && backported_patch=""
+  cat << EOF >> ../layers/meta-96boards/recipes-core/systemd/systemd_%.bbappend
+FILESEXTRAPATHS_prepend := "\${THISDIR}/\${PN}:"
+
+SRC_URI += "\\
+    ${backported_patch} \\
+    file://e2fsck.conf \\
+"
+
+PACKAGECONFIG_remove = "firstboot"
+
+do_install_append() {
+    # Install /etc/e2fsck.conf to avoid boot stuck by wrong clock time
+    install -m 644 -p -D \${WORKDIR}/e2fsck.conf \${D}\${sysconfdir}/e2fsck.conf
+
+    rm -f \${D}\${sysconfdir}/machine-id
+}
+
+FILES_\${PN} += "\${sysconfdir}/e2fsck.conf "
+EOF
+
+  # Update kernel recipe SRCREV
+  kernel_recipe=$(find ../layers/meta-96boards -name ${KERNEL_RECIPE}_${KERNEL_VERSION}.bb)
+  sed -i "s|^SRCREV_kernel = .*|SRCREV_kernel = \"${SRCREV_kernel}\"|" ${kernel_recipe}
+
 }
 
 sauce_lhg() {
