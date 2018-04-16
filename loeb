@@ -185,11 +185,11 @@ loeb_reset() {
   popd > /dev/null
 }
 
-sauce_rpb() {
-  dir=$(get_repo_base_dir)
-  dir=${dir:-.}
-  cd "${dir}"
-
+# Sauce of the house, used on all recipes
+# needs:
+# PUB_DEST
+# BUILD_NUMBER
+sauce_house() {
   # Copies of our manifest
   cp .repo/manifest.xml source-manifest.xml
   repo manifest -r -o pinned-manifest.xml
@@ -228,6 +228,15 @@ EOF
   cat << EOF >> conf/auto.conf
 INHERIT += "buildstats buildstats-summary"
 EOF
+}
+
+# Sauce for Reference Platform builds
+sauce_rpb() {
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  cd "${dir}"
+
+  sauce_house
 }
 
 sauce_lkft() {
