@@ -108,6 +108,8 @@ loeb_setup() {
 
     install_repo
   fi
+
+  # FIXME: make sure git has name and email
 }
 
 
@@ -394,7 +396,7 @@ loeb_apply() {
 
   sauce_${sauce}
 
-cat << EOF >> ${BASE_DIR}/env-loeb
+  cat << EOF > ${BASE_DIR}/env-loeb
 set -a
 MACHINE=${MACHINE}
 DISTRO=${DISTRO}
