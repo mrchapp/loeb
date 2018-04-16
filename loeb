@@ -196,8 +196,9 @@ sauce_rpb() {
   MANIFEST_COMMIT=$(cd .repo/manifests && git rev-parse --short HEAD)
 
   # Record changes since last build, if available
-  if wget -q ${BASE_URL}${PUB_DEST/\/${BUILD_NUMBER}\//\/latest\/}/pinned-manifest.xml -O pinned-manifest-latest.xml; then
-    repo diffmanifests ${PWD}/pinned-manifest-latest.xml ${PWD}/pinned-manifest.xml > manifest-changes.txt
+  BASE_URL=${BASE_URL:-http://snapshots.linaro.org}
+  if wget -q ${BASE_URL}${PUB_DEST/\/${BUILD_NUMBER}\//\/latest\/}/pinned-manifest.xml -O ${BASE_DIR}/pinned-manifest-latest.xml; then
+    repo diffmanifests ${BASE_DIR}/pinned-manifest-latest.xml ${BASE_DIR}/pinned-manifest.xml > ${BASE_DIR}/manifest-changes.txt
   else
     log warning "Latest build published does not have pinned-manifest.xml. Skipping diff report."
   fi
