@@ -8,6 +8,8 @@ usage() {
   echo "  loeb init     Initialize OpenEmbedded repository"
   echo "  loeb sync     Synchronize recipe repository with server"
   echo "  loeb apply    Apply a sauce"
+  echo "  loeb save     Save all changes into every repository's stash"
+  echo "  loeb restore  Retore changes from every repository's stash"
   echo "  loeb reset    Reset everything to a pristine state"
 }
 
@@ -184,6 +186,81 @@ loeb_reset() {
   fi
   repo forall -c git reset --hard HEAD
   repo forall -c git clean -fdx
+  popd > /dev/null
+}
+
+loeb_stash() {
+  cwd=$(readlink -e $(pwd))
+  base_dir=$(get_repo_base_dir)
+
+  case $1 in
+  save)
+    shift
+    id=$1; shift
+    git stash save --all "${id}"
+    if [ -n "$(git stash list | grep "${id}" | cut -d: -f1)" ]; then
+      echo "${cwd}:${id}" >> "${base_dir}/.loeb-stash"
+    fi
+    ;;
+  restore)
+    [ -r "${base_dir}/.loeb-stash" ] || return
+    id=$(grep "${cwd}" "${base_dir}/.loeb-stash" 2>/dev/null | cut -d: -f2)
+    if [ -n "$(git stash list | grep "${id}")" ]; then
+      stash=$(git stash list | grep "${id}" | cut -d: -f1)
+      git stash pop "${stash}"
+      #[ $? -eq 0 ] && rm -f .loeb-stash
+    fi
+    ;;
+  esac
+}
+
+loeb_save() {
+  echo "This will save all modifications and untracked files into the stash"
+  echo "across all repos."
+  read -e -p "Are you sure you want to proceed? [y/N] " proceed
+  answer=${proceed:0:1}
+  if [ "${answer,,}" != "y" ]; then
+    echo "Not saving."
+    return
+  fi
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  pushd "${dir}" > /dev/null
+
+  datime=$(date +"%Y%m%d%H%M%S")
+  if [ -e .loeb-stash ]; then
+    echo "A previous stash exists in $(readlink -e .loeb-stash)."
+    echo "Cannot continue."
+    return 1
+  fi
+
+  if [ -d .repo/manifests/ ]; then
+    cd .repo/manifests/
+    loeb_stash save "loeb-work-${datime}"
+    cd "${OLDPWD}"
+  fi
+  repo forall -c loeb stash save "loeb-work-${datime}"
+  popd > /dev/null
+}
+
+loeb_restore() {
+  echo "This will restore all modifications saved in the stash across all repos."
+  read -e -p "Are you sure you want to proceed? [y/N] " proceed
+  answer=${proceed:0:1}
+  if [ "${answer,,}" != "y" ]; then
+    echo "Not restoring."
+    return
+  fi
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  pushd "${dir}" > /dev/null
+  if [ -d .repo/manifests/ ]; then
+    cd .repo/manifests/
+    loeb stash pop
+    cd "${OLDPWD}"
+  fi
+  repo forall -c loeb stash restore
+  rm -v .loeb-stash
   popd > /dev/null
 }
 
@@ -487,8 +564,17 @@ case ${action} in
   reset)
     loeb_reset $*
     ;;
+  restore)
+    loeb_restore $*
+    ;;
+  save)
+    loeb_save $*
+    ;;
   setup)
     loeb_setup $*
+    ;;
+  stash)
+    loeb_stash $*
     ;;
   sync)
     loeb_sync $*
