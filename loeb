@@ -370,6 +370,10 @@ sauce_lhg() {
   :
 }
 
+sauce_none() {
+  log info "Not applying any sauce."
+}
+
 loeb_apply() {
   if [ -z "${MACHINE}" -o -z "${DISTRO}" ]; then
     loeb_config
