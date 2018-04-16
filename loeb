@@ -175,6 +175,11 @@ loeb_reset() {
   rm -f pinned-manifest-latest.xml
   rm -f pinned-manifest.xml
   rm -f source-manifest.xml
+  if [ -d .repo/manifests/ ]; then
+    cd .repo/manifests/
+    git reset --hard HEAD
+    cd "${OLDPWD}"
+  fi
   repo forall -c git reset --hard HEAD
   repo forall -c git clean -fdx
   popd > /dev/null
