@@ -452,16 +452,25 @@ BASE_DIR=${BASE_DIR:-.}
 CONFIG_FILE="${BASE_DIR}/.loeb.config"
 BUILD_DIR=build
 BUILD_NUMBER=1337
+
+if [ $# -lt 1 ]; then
+  usage
+  exit 0
+fi
+
+if [ "$1" == "-c" ]; then
+  shift
+  CONFIG_FILE=$1
+  shift
+fi
+
 if [ -f "${CONFIG_FILE}" ]; then
   log info "Reading config from ${CONFIG_FILE}"
   set -a
   source "${CONFIG_FILE}"
   set +a
-fi
-
-if [ $# -lt 1 ]; then
-  usage
-  exit 0
+else
+  log info "Config file ${CONFIG_FILE} does not exist."
 fi
 
 action=$1; shift
