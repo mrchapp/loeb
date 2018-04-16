@@ -378,7 +378,22 @@ loeb_apply() {
   if [ -z "${MACHINE}" -o -z "${DISTRO}" ]; then
     loeb_config
   fi
-  sauce_rpb
+
+  declare -a SAUCES
+  SAUCES=(none rpb lkft)
+  echo "A 'sauce' adds to the recipes to achieve an unparalleled"
+  echo "flavor. Sauce can be one of:"
+  echo "  ${SAUCES[@]}"
+  while [ ! "${sauce}" ]; do
+    read -e -p "Which sauce do you want to apply? (Default: none) " sauce
+    sauce="${sauce:-none}"
+    sauce="${sauce,,}"
+    [[ ! " ${SAUCES[@]} " =~ " ${sauce} " ]] && log warning "Invalid sauce: ${sauce}" && sauce=""
+  done
+  log info "Chosen sauce: ${sauce}"
+
+  sauce_${sauce}
+
 cat << EOF >> ${BASE_DIR}/env-loeb
 set -a
 MACHINE=${MACHINE}
