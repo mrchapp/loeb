@@ -8,6 +8,7 @@ usage() {
   echo "  loeb init     Initialize OpenEmbedded repository"
   echo "  loeb sync     Synchronize recipe repository with server"
   echo "  loeb apply    Apply a sauce"
+  echo "  loeb env      Enter into OpenEmbedded build environment"
   echo "  loeb save     Save all changes into every repository's stash"
   echo "  loeb restore  Retore changes from every repository's stash"
   echo "  loeb reset    Reset everything to a pristine state"
@@ -154,6 +155,25 @@ loeb_init() {
   if [ "${SYNC}" == "yes" ]; then
     loeb_sync
   fi
+}
+
+loeb_env() {
+  dir=$(get_repo_base_dir)
+  dir=${dir:-.}
+  cd ${dir}
+
+  log info "Entering LOEB environment..."
+  COLOR_ON="\\[\\e[1;37;44m\\]"
+  COLOR_OFF="\\[\\e[0m\\]"
+  TITLE="\\[\\033]0;[loeb:${MACHINE}] \u@\h:\w\\007\\]"
+  export NPS1="${TITLE}${COLOR_ON}[loeb:${MACHINE}]${COLOR_OFF} \\u\\[\\]@\\[\\]\\h\\[\\]:\\[\\]\\w$ "
+  bash --rcfile <( \
+    cat "${HOME}/.bashrc" && \
+    echo "export PS1=\"${NPS1}\"" && \
+    echo "export MACHINE=\"${MACHINE}\"" && \
+    echo "export DISTRO=\"${DISTRO}\"" && \
+    echo "source setup-environment \"${BUILD_DIR}\"" \
+  )
 }
 
 loeb_sync() {
@@ -481,6 +501,8 @@ set +a
 . setup-environment ${BUILD_DIR}
 EOF
   log info "Done. You can now run:"
+  log info "  loeb env"
+  log info "or:"
   log info "  source env-loeb"
 }
 
@@ -557,6 +579,9 @@ case ${action} in
     ;;
   config)
     loeb_config $*
+    ;;
+  env)
+    loeb_env $*
     ;;
   init)
     loeb_init $*
