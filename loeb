@@ -90,9 +90,22 @@ loeb_setup() {
 
   if [ "${SKIP_INSTALL}" == "no" ]; then
     # Install APT dependencies
-    pkg_list="android-tools-fsutils chrpath cpio diffstat gawk libelf-dev libmagickwand-dev \
-              libmath-prime-util-perl libsdl1.2-dev libssl-dev python-pip python-requests texinfo \
-              vim-tiny virtualenv whiptail"
+    pkg_list="android-tools-fsutils \
+              chrpath \
+              cpio \
+              diffstat \
+              gawk \
+              libelf-dev \
+              libmagickwand-dev \
+              libmath-prime-util-perl \
+              libsdl1.2-dev \
+              libssl-dev \
+              python-pip \
+              python-requests \
+              texinfo \
+              vim-tiny \
+              virtualenv \
+              whiptail"
     if [ "${SKIP_UPDATE}" == "no" ]; then
       if ! log_on_error sudo DEBIAN_FRONTEND=noninteractive apt-get -q=2 update; then
         log info "apt update error - try again in a moment"
