@@ -100,6 +100,7 @@ loeb_setup() {
               libmath-prime-util-perl \
               libsdl1.2-dev \
               libssl-dev \
+              pxz \
               python-pip \
               python-requests \
               texinfo \
