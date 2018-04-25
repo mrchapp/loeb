@@ -486,6 +486,10 @@ sauce_none() {
 }
 
 loeb_apply() {
+  if [ $# -gt 0 ]; then
+    sauce=$1
+  fi
+
   if [ -z "${MACHINE}" -o -z "${DISTRO}" ]; then
     loeb_config
   fi
