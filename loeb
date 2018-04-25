@@ -185,12 +185,17 @@ loeb_env() {
   COLOR_OFF="\\[\\e[0m\\]"
   TITLE="\\[\\033]0;[loeb:${MACHINE}] \u@\h:\w\\007\\]"
   export NPS1="${TITLE}${COLOR_ON}[loeb:${MACHINE}]${COLOR_OFF} \\u\\[\\]@\\[\\]\\h\\[\\]:\\[\\]\\w$ "
+  COMMANDS=""
+  if [ $# -gt 0 ]; then
+    COMMANDS="$* && exit"
+  fi
   bash --rcfile <( \
     cat "${HOME}/.bashrc" && \
     echo "export PS1=\"${NPS1}\"" && \
     echo "export MACHINE=\"${MACHINE}\"" && \
     echo "export DISTRO=\"${DISTRO}\"" && \
-    echo "source setup-environment \"${BUILD_DIR}\"" \
+    echo "source setup-environment \"${BUILD_DIR}\"" && \
+    echo "${COMMANDS}" \
   )
 }
 
