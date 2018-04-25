@@ -275,7 +275,7 @@ loeb_save() {
     loeb_stash save "loeb-work-${datime}"
     cd "${OLDPWD}"
   fi
-  repo forall -c loeb stash save "loeb-work-${datime}"
+  repo forall -c loeb -s stash save "loeb-work-${datime}"
   popd > /dev/null
 }
 
@@ -292,10 +292,10 @@ loeb_restore() {
   pushd "${dir}" > /dev/null
   if [ -d .repo/manifests/ ]; then
     cd .repo/manifests/
-    loeb stash pop
+    loeb -s stash pop
     cd "${OLDPWD}"
   fi
-  repo forall -c loeb stash restore
+  repo forall -c loeb -s stash restore
   rm -v .loeb-stash
   popd > /dev/null
 }
