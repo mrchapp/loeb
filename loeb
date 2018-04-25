@@ -12,6 +12,8 @@ usage() {
   echo "  loeb save     Save all changes into every repository's stash"
   echo "  loeb restore  Retore changes from every repository's stash"
   echo "  loeb reset    Reset everything to a pristine state"
+  echo "  loeb copyconfig"
+  echo "                Extract the configuration from a Jenkins build"
 }
 
 log() {
@@ -554,6 +556,35 @@ loeb_config() {
   export DISTRO="${distro}"
 }
 
+# $1 xml needle
+# $2 hay file
+xml_get_var()
+{
+  v=$1
+  xpath -q -e "/matrixRun/action/parameter[name=\"${v}\"]/value/text()" "$2"
+}
+
+loeb_copyconfig()
+{
+  url=$1
+  # FIXME: sanitize URL, verify XML API
+  wget -q "${url}/api/xml" -O jenkins-config.xml
+  varDISTRO=$(echo "${url}" | egrep -o 'DISTRO=[0-9a-zA-Z-]*')
+  varMACHINE=$(echo "${url}" | egrep -o 'MACHINE=[0-9a-zA-Z-]*')
+  BRANCH=$(xml_get_var MANIFEST_BRANCH jenkins-config.xml)
+
+  (
+    echo "${varDISTRO}"
+    echo "${varMACHINE}"
+    echo "BRANCH=${BRANCH}"
+    for v in KERNEL_RECIPE KERNEL_VERSION SRCREV_kernel; do
+      echo "${v}=$(xml_get_var ${v} jenkins-config.xml)"
+    done
+  ) | tee -a .loeb.config
+
+  rm -f jenkins-config.xml
+}
+
 
 # START HERE
 BASE_DIR=$(get_repo_base_dir)
@@ -584,8 +615,6 @@ if [ -f "${CONFIG_FILE}" ]; then
   set -a
   source "${CONFIG_FILE}"
   set +a
-else
-  log info "Config file ${CONFIG_FILE} does not exist."
 fi
 
 action=$1; shift
@@ -595,6 +624,9 @@ case ${action} in
     ;;
   config)
     loeb_config $*
+    ;;
+  copyconfig)
+    loeb_copyconfig $*
     ;;
   env)
     loeb_env $*
