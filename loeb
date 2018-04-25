@@ -18,7 +18,9 @@ log() {
   level=$1; shift
   msg=$*
 
-  echo "[${level^^}] ${msg}"
+  if [ "${SILENT}" = "FALSE" ]; then
+    echo "[${level^^}] ${msg}"
+  fi
 }
 
 log_on_error()
@@ -559,6 +561,7 @@ BASE_DIR=${BASE_DIR:-.}
 CONFIG_FILE="${BASE_DIR}/.loeb.config"
 BUILD_DIR=build
 BUILD_NUMBER=1337
+SILENT=FALSE
 
 if [ $# -lt 1 ]; then
   usage
@@ -568,6 +571,11 @@ fi
 if [ "$1" == "-c" ]; then
   shift
   CONFIG_FILE=$1
+  shift
+fi
+
+if [ "$1" == "-s" ]; then
+  SILENT=TRUE
   shift
 fi
 
