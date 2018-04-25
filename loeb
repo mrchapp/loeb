@@ -599,8 +599,8 @@ loeb_copyconfig()
 BASE_DIR=$(get_repo_base_dir)
 BASE_DIR=${BASE_DIR:-.}
 CONFIG_FILE="${BASE_DIR}/.loeb.config"
-BUILD_DIR=build
-BUILD_NUMBER=1337
+BUILD_DIR=${BUILD_DIR:-build}
+BUILD_NUMBER=${BUILD_NUMBER:-1337}
 SILENT=FALSE
 
 if [ $# -lt 1 ]; then
