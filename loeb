@@ -208,10 +208,14 @@ loeb_sync() {
 }
 
 loeb_reset() {
+  answer=""
+  [ $# -gt 0 ] && [ "$1" = "-f" ] && answer=y
   echo "Resetting will remove all unsaved changes and delete untracked files"
   echo "across all repos."
-  read -e -p "Are you sure you want to proceed? [y/N] " proceed
-  answer=${proceed:0:1}
+  if [ -z "${answer}" ]; then
+    read -e -p "Are you sure you want to proceed? [y/N] " proceed
+    answer=${proceed:0:1}
+  fi
   if [ "${answer,,}" != "y" ]; then
     echo "Not resetting."
     return
