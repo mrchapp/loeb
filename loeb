@@ -477,8 +477,15 @@ FILES_\${PN} += "\${sysconfdir}/e2fsck.conf "
 EOF
 
   # Update kernel recipe SRCREV
-  kernel_recipe=$(find ../layers/meta-96boards -name ${KERNEL_RECIPE}_${KERNEL_VERSION}.bb)
-  sed -i "s|^SRCREV_kernel = .*|SRCREV_kernel = \"${SRCREV_kernel}\"|" ${kernel_recipe}
+  if [ ${KERNEL_RECIPE} = "linux-generic" ]; then
+    custom_kinfo=$(find ../layers/meta-96boards -name custom-kernel-info.inc)
+    sed -i "s|^KERNEL_COMMIT = .*|KERNEL_COMMIT = \"${SRCREV_kernel}\"|" ${custom_kinfo}
+    sed -i "s|^KERNEL_REPO = .*|KERNEL_REPO = \"${CUSTOM_KERNEL_REPO}\"|" ${custom_kinfo}
+    sed -i "s|^KERNEL_BRANCH = .*|KERNEL_BRANCH = \"${CUSTOM_KERNEL_BRANCH}\"|" ${custom_kinfo}
+  else
+    kernel_recipe=$(find ../layers/meta-96boards -name ${KERNEL_RECIPE}_${KERNEL_VERSION}.bb)
+    sed -i "s|^SRCREV_kernel = .*|SRCREV_kernel = \"${SRCREV_kernel}\"|" ${kernel_recipe}
+  fi
 
 }
 
