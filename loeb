@@ -187,7 +187,7 @@ loeb_env() {
   export NPS1="${TITLE}${COLOR_ON}[loeb:${MACHINE}]${COLOR_OFF} \\u\\[\\]@\\[\\]\\h\\[\\]:\\[\\]\\w$ "
   COMMANDS=""
   if [ $# -gt 0 ]; then
-    COMMANDS="$* && exit"
+    COMMANDS="$*; exit $?"
   fi
   bash --rcfile <( \
     cat "${HOME}/.bashrc" && \
