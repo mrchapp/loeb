@@ -481,7 +481,7 @@ FILES_\${PN} += "\${sysconfdir}/e2fsck.conf "
 EOF
 
   # Update kernel recipe SRCREV
-  if [ ${KERNEL_RECIPE} = "linux-generic" ]; then
+  if [ "${KERNEL_RECIPE}" = "linux-generic" ]; then
     custom_kinfo=$(find ../layers/meta-96boards -name custom-kernel-info.inc)
     sed -i "s|^KERNEL_COMMIT = .*|KERNEL_COMMIT = \"${SRCREV_kernel}\"|" ${custom_kinfo}
     sed -i "s|^KERNEL_REPO = .*|KERNEL_REPO = \"${CUSTOM_KERNEL_REPO}\"|" ${custom_kinfo}
