@@ -14,6 +14,8 @@ usage() {
   echo "  loeb reset    Reset everything to a pristine state"
   echo "  loeb copyconfig"
   echo "                Extract the configuration from a Jenkins build"
+  echo "  loeb justbuild"
+  echo "                Read configuration, init, apply, and build"
 }
 
 log() {
@@ -610,6 +612,49 @@ loeb_copyconfig()
   rm -f jenkins-config.xml
 }
 
+loeb_justbuild()
+{
+  FLAVOR=lkft
+  while [ "$1" ]; do
+    case $1 in
+      -f|--flavor)
+        shift; FLAVOR=$1
+        ;;
+      -c|--config)
+        shift; CONFIG_FILE=$1
+        ;;
+      *)
+        break
+        ;;
+    esac
+    shift
+  done
+  if [ $# -gt 0 ]; then
+    targets=$@
+  else
+    targets="rpb-console-image"
+  fi
+
+  if [ "${CONFIG_FILE:0:4}" = "http" ]; then
+    loeb_copyconfig ${CONFIG_FILE}
+  fi
+  set -a
+  source .loeb.config
+  set +a
+
+  if [[ -v JENKINS_URL ]]; then
+    loeb_setup --jenkins
+  fi
+
+  if [ ! -d .repo ]; then
+    loeb_init --no-sync
+  fi
+
+  loeb_reset -f
+  loeb_sync
+  loeb_apply lkft
+  loeb env bitbake ${targets}
+}
 
 # START HERE
 BASE_DIR=$(get_repo_base_dir)
@@ -658,6 +703,9 @@ case ${action} in
     ;;
   init)
     loeb_init $*
+    ;;
+  justbuild)
+    loeb_justbuild $*
     ;;
   reset)
     loeb_reset $*
