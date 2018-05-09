@@ -46,7 +46,7 @@ install_repo() {
   mkdir -p "${HOME}/bin"
   curl -Ss https://storage.googleapis.com/git-repo-downloads/repo > "${HOME}/bin/repo"
   chmod a+x "${HOME}/bin/repo"
-  if [ "${PATH}" != "${PATH/${HOME}\/bin\:}" ]; then
+  if [ "${PATH}" = "${PATH/${HOME}\/bin\:}" ]; then
     export PATH="${HOME}/bin":"${PATH}"
   fi
 }
