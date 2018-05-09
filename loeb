@@ -104,6 +104,7 @@ loeb_setup() {
               libmath-prime-util-perl \
               libsdl1.2-dev \
               libssl-dev \
+              locales \
               pxz \
               python-pip \
               python-requests \
@@ -128,6 +129,10 @@ loeb_setup() {
     pip install --user --force-reinstall jinja2-cli ruamel.yaml
 
     install_repo
+  fi
+
+  if [ "${SETUP_JENKINS}" == "yes" ]; then
+    sudo locale-gen --lang en_US.UTF-8
   fi
 
   # FIXME: make sure git has name and email
