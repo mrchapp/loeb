@@ -143,6 +143,7 @@ loeb_setup() {
 
 loeb_init() {
   SYNC=yes
+  QUIET=no
   while [ "$1" ]; do
     case $1 in
       --no-sync)
@@ -154,6 +155,9 @@ loeb_init() {
       --manifest)
         shift; MANIFEST_URL=$1
         ;;
+      --quiet)
+        QUIET=yes
+        ;;
       *)
         log error "Unknown parameter to ${FUNCNAME}: $1"
         exit 1
@@ -164,11 +168,11 @@ loeb_init() {
   DEFAULT_MANIFEST_URL=${MANIFEST_URL:-https://github.com/96boards/oe-rpb-manifest.git}
   DEFAULT_BRANCH=${BRANCH:-morty}
 
-  read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch ||:
+  [ "${QUIET}" = "no" ] && read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch ||:
   [ -z "${branch}" ] && branch="${DEFAULT_BRANCH}"
   echo "Branch selected: ${branch}"
 
-  read -e -p "Enter manifest URL [${DEFAULT_MANIFEST_URL}] " manifest_url ||:
+  [ "${QUIET}" = "no" ] && read -e -p "Enter manifest URL [${DEFAULT_MANIFEST_URL}] " manifest_url ||:
   [ -z "${manifest_url}" ] && manifest_url="${DEFAULT_MANIFEST_URL}"
   echo "Manifest URL: ${manifest_url}"
 
@@ -647,7 +651,7 @@ loeb_justbuild()
   fi
 
   if [ ! -d .repo ]; then
-    loeb_init --no-sync
+    loeb_init --no-sync --quiet
   fi
 
   loeb_reset -f
