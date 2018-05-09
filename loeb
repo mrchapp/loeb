@@ -157,11 +157,11 @@ loeb_init() {
   DEFAULT_MANIFEST_URL=${MANIFEST_URL:-https://github.com/96boards/oe-rpb-manifest.git}
   DEFAULT_BRANCH=${BRANCH:-morty}
 
-  read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch
+  read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch ||:
   [ -z "${branch}" ] && branch="${DEFAULT_BRANCH}"
   echo "Branch selected: ${branch}"
 
-  read -e -p "Enter manifest URL [${DEFAULT_MANIFEST_URL}] " manifest_url
+  read -e -p "Enter manifest URL [${DEFAULT_MANIFEST_URL}] " manifest_url ||:
   [ -z "${manifest_url}" ] && manifest_url="${DEFAULT_MANIFEST_URL}"
   echo "Manifest URL: ${manifest_url}"
 
@@ -213,7 +213,7 @@ loeb_reset() {
   echo "Resetting will remove all unsaved changes and delete untracked files"
   echo "across all repos."
   if [ -z "${answer}" ]; then
-    read -e -p "Are you sure you want to proceed? [y/N] " proceed
+    read -e -p "Are you sure you want to proceed? [y/N] " proceed ||:
     answer=${proceed:0:1}
   fi
   if [ "${answer,,}" != "y" ]; then
@@ -264,7 +264,7 @@ loeb_stash() {
 loeb_save() {
   echo "This will save all modifications and untracked files into the stash"
   echo "across all repos."
-  read -e -p "Are you sure you want to proceed? [y/N] " proceed
+  read -e -p "Are you sure you want to proceed? [y/N] " proceed ||:
   answer=${proceed:0:1}
   if [ "${answer,,}" != "y" ]; then
     echo "Not saving."
@@ -292,7 +292,7 @@ loeb_save() {
 
 loeb_restore() {
   echo "This will restore all modifications saved in the stash across all repos."
-  read -e -p "Are you sure you want to proceed? [y/N] " proceed
+  read -e -p "Are you sure you want to proceed? [y/N] " proceed ||:
   answer=${proceed:0:1}
   if [ "${answer,,}" != "y" ]; then
     echo "Not restoring."
@@ -516,7 +516,7 @@ loeb_apply() {
   echo "flavor. Sauce can be one of:"
   echo "  ${SAUCES[@]}"
   while [ ! "${sauce}" ]; do
-    read -e -p "Which sauce do you want to apply? (Default: none) " sauce
+    read -e -p "Which sauce do you want to apply? (Default: none) " sauce ||:
     sauce="${sauce:-none}"
     sauce="${sauce,,}"
     [[ ! " ${SAUCES[@]} " =~ " ${sauce} " ]] && log warning "Invalid sauce: ${sauce}" && sauce=""
@@ -563,13 +563,13 @@ loeb_config() {
   DEFAULT_MACHINE=hikey
   DEFAULT_DISTRO=rpb
 
-  read -e -p "Machine to build for? [${DEFAULT_MACHINE}] " machine
+  read -e -p "Machine to build for? [${DEFAULT_MACHINE}] " machine ||:
   [ -z "${machine}" ] && machine="${DEFAULT_MACHINE}"
   echo "Selected machine: ${machine}"
   update_config MACHINE "${machine}"
   export MACHINE="${machine}"
 
-  read -e -p "Distro to build? [${DEFAULT_DISTRO}] " distro
+  read -e -p "Distro to build? [${DEFAULT_DISTRO}] " distro ||:
   [ -z "${distro}" ] && distro="${DEFAULT_DISTRO}"
   echo "Selected distro: ${distro}"
   update_config DISTRO "${distro}"
