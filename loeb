@@ -468,7 +468,7 @@ EOF
 # This will prevent e2fsck from stopping boot just because the clock is wrong
 broken_system_clock = 1
 EOF
-  backported_path="file://backport-v234-e266c06-v230.patch"
+  backported_patch="file://backport-v234-e266c06-v230.patch"
   systemd_recipe=$(ls ../layers/openembedded-core/meta/recipes-core/systemd/systemd_*.bb)
   [ "${systemd_recipe}" == "systemd_234.bb" ] && backported_patch=""
   cat << EOF >> ../layers/meta-96boards/recipes-core/systemd/systemd_%.bbappend
