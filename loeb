@@ -91,7 +91,10 @@ loeb_setup() {
   if [ "${SETUP_JENKINS}" == "yes" ]; then
     sudo mkdir -p /srv/oe
     sudo chown buildslave:buildslave /srv/oe
-    cd /srv/oe
+
+    sudo mkdir -p ${HOME}/srv/oe/downloads ${HOME}/srv/oe/sstate-cache-${DISTRO}-${MANIFEST_BRANCH}
+    ln -s ${HOME}/srv/oe/downloads
+    ln -s ${HOME}/srv/oe/sstate-cache-${DISTRO}-${MANIFEST_BRANCH} sstate-cache
   fi
 
   if [ "${SKIP_INSTALL}" == "no" ]; then
