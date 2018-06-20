@@ -207,7 +207,7 @@ loeb_env() {
     echo "export DISTRO=\"${DISTRO}\"" && \
     echo "source setup-environment \"${BUILD_DIR}\"" && \
     echo "${COMMANDS}" \
-  )
+  ) -i
 }
 
 loeb_sync() {
