@@ -169,7 +169,7 @@ loeb_init() {
     shift
   done
   DEFAULT_MANIFEST_URL=${MANIFEST_URL:-https://github.com/96boards/oe-rpb-manifest.git}
-  DEFAULT_BRANCH=${BRANCH:-morty}
+  DEFAULT_BRANCH=${BRANCH:-rocko}
 
   [ "${QUIET}" = "no" ] && read -e -p "Which branch are we building today? [${DEFAULT_BRANCH}] " branch ||:
   [ -z "${branch}" ] && branch="${DEFAULT_BRANCH}"
