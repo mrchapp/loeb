@@ -388,6 +388,11 @@ sauce_lkft() {
   dir=${dir:-.}
   cd "${dir}"
 
+  if [ -z "${KERNEL_RECIPE}" ]; then
+    echo "Kernel recipe has not been defined. Please set KERNEL_RECIPE in .loeb.config and run again."
+    exit 1
+  fi
+
   sauce_house
 
   # Set the kernel to use
